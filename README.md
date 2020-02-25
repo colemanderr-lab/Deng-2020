@@ -6,8 +6,8 @@
 doi:https://doi.org/10.1101/2020.02.21.960377
 
 Included in this repository are...
-+ XYZ
-+ XYZ
-+ XYZ
++ Deng2020.Rmd (R markdown file to run analyses)
++ all associated txt files needed to run Deng2020.Rmd analyses and generate figures
++ all associated R data files needed to run Deng2020.Rmd analyses and generate figures
 
 Raw sequence files have been uploaded to NCBI under SRA XXXX and are publicly available.
