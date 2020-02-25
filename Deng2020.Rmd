@@ -1,0 +1,928 @@
+---
+title: "Statistical analyses and plotting for sorghum rhizosphere GWAS"
+author: "Siwen Deng Ph.D. and Daniel F. Caddell Ph.D."
+date: "2/24/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+all R code for the manuscript entitled 'Genome wide association study reveals plant loci controlling heritability of the rhizosphere microbiome'
+
+Assume the input files below are in the current working directory
+
+#load packages
+```{r results="hide", warning=FALSE, message=FALSE}
+library("phyloseq"); packageVersion("phyloseq") #‘1.30.0’
+library("ggplot2"); packageVersion("ggplot2") #‘3.2.1’
+library("scales"); packageVersion("scales") #‘1.1.0’
+library("grid"); packageVersion("grid") #‘3.6.1’
+library("DESeq"); packageVersion("DESeq") #‘1.38.0’
+library("ape"); packageVersion("ape") #‘5.3’
+library("reshape2"); packageVersion("reshape2") #‘1.4.3’
+library("vegan"); packageVersion("vegan") #‘2.5.6’
+library("data.table"); packageVersion("data.table") #‘1.12.8’
+library("ggrepel"); packageVersion("ggrepel") #‘0.8.1’
+library("dplyr"); packageVersion("dplyr") #‘0.8.3’
+library("data.table"); packageVersion("data.table") #‘1.12.8’
+library("qqman"); packageVersion("qqman") #‘0.1.4’
+library("RColorBrewer"); packageVersion("RColorBrewer") #‘1.1.2’
+library("colorspace"); packageVersion("colorspace") #‘1.4.1’
+library("patchwork"); packageVersion("patchwork") #‘1.0.0’
+theme_set(theme_bw())
+#setwd("/set/working/directory/location/")
+setwd("/users/dcaddell/Desktop/Github/R_data/")
+```
+
+#Figure 1
+Figure 1b and figure 1c
+```{r}
+#import data from current working directory 
+rar <- readRDS("fig1_24line.rds")
+Diversity_table <- estimate_richness(rar,  measures=c("Shannon", "Observed"))
+Diversity_table <- merge(Diversity_table, sample_data(rar), by="row.names")
+Diversity_table$Sampletype <- factor(Diversity_table$Sampletype, levels = c( "Leaf", "Root", "Rhizo"))
+```
+
+Plot Figure 1b and Figure 1c
+```{r}
+p1b <- ggplot(data=Diversity_table, aes(y=Shannon,x=Sampletype,fill=Sampletype)) + 
+              geom_boxplot() +
+              scale_fill_manual(values=c("#9ACAA1","#E1D337", "#CE8764")) +
+              theme(axis.text.x=element_text(hjust=1,vjust=0.5,size=10,color="black",angle=90,face="bold"), 
+                    axis.text.y=element_text(size=11,color="black",face="bold"), 
+                    axis.title=element_text(size=11,face="bold"),text=element_text(size=11,face="bold"),
+                    legend.position="right")
+p1b
+# ggsave("figure_1b.pdf", plot = p1b, width=6, height=5, useDingbats=FALSE)
+# ggsave("figure_1b.png", plot = p1b, width=6, height=5, dpi=600)
+
+p1c <- plot_ordination(rar, ordinate(rar, "MDS",distance="bray"),axes=1:2, color = "Sampletype") + 
+                      scale_color_manual(values=c("#9ACAA1","#CE8764","#E1D337")) +
+                      geom_point(colour="black",size=3.5) +
+                      geom_point(size = 2.5) +
+                      xlim(-0.4,0.7) +
+                      scale_x_continuous(breaks=c(-0.3,0,0.3,0.6))+
+                      ylim(-0.33,0.25)+
+                      theme(axis.text.x=element_text(size=11,color="black",angle=90),
+                            axis.text.y=element_text(size=11,color="black"), 
+                            axis.title=element_text(size=11,face="bold"),
+                            text=element_text(size=11,face="bold"),
+                            legend.position="right")
+p1c
+# ggsave("figure_1c.pdf", plot = p1c, width=6, height=5, useDingbats=FALSE)
+# ggsave("figure_1c.png", plot = p1c, width=6, height=5, dpi=600)
+```
+
+Figure 1d
+```{r}
+# to create Root subset
+root <- subset_samples(rar, Sampletype == "Root")
+raw_env <- data.frame(sample_data(root))
+raw_env$sbNum_rep<-paste(raw_env$Line,raw_env$Block,sep="_")
+sample_data(root) <- raw_env
+OTU1 <- data.frame(otu_table(root))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+OTU1 <- t(OTU1)
+Root_OTU = as.data.frame(OTU1)
+env_current <- data.frame(sample_data(root))
+row.names(env_current)<-env_current$sbNum_rep
+row.names(Root_OTU)<-env_current$sbNum_rep
+Root_OTU<-Root_OTU[order(row.names(Root_OTU)),]
+# to create Rhizo subset
+rhizo <- subset_samples(rar, Sampletype == "Rhizo")
+raw_env <- data.frame(sample_data(rhizo))
+raw_env$sbNum_rep<-paste(raw_env$Line,raw_env$Block,sep="_")
+sample_data(rhizo) <- raw_env
+OTU1 <- data.frame(otu_table(rhizo))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+OTU1 <- t(OTU1)
+# Coerce to data.frame
+Rhizo_OTU = as.data.frame(OTU1)
+env_current <- data.frame(sample_data(rhizo))
+row.names(env_current)<-env_current$sbNum_rep
+row.names(Rhizo_OTU)<-env_current$sbNum_rep
+Rhizo_OTU<-Rhizo_OTU[order(row.names(Rhizo_OTU)),]
+# to create the Leaf subset
+leaf <- subset_samples(rar, Sampletype == "Leaf")
+raw_env <- data.frame(sample_data(leaf))
+raw_env$sbNum_rep<-paste(raw_env$Line,raw_env$Block,sep="_")
+sample_data(leaf) <- raw_env
+OTU1 <- data.frame(otu_table(leaf))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+OTU1 <- t(OTU1)
+# Coerce to data.frame
+Leaf_OTU = as.data.frame(OTU1)
+env_current <- data.frame(sample_data(leaf))
+row.names(env_current)<-env_current$sbNum_rep
+row.names(Leaf_OTU)<-env_current$sbNum_rep
+Leaf_OTU<-Leaf_OTU[order(row.names(Leaf_OTU)),]
+#to create the distance objects for each subset
+Root_dist<-vegdist(Root_OTU,"bray")
+Rhizo_dist<-vegdist(Rhizo_OTU,"bray")
+Leaf_dist<-vegdist(Leaf_OTU,"bray")
+## to create the phylogenetic distance table for each OTU subset 
+phy_distances_table<-read.table("fig1_24line.txt")
+phy_distances_table_Root<-phy_distances_table[c(row.names(Root_OTU)),c(row.names(Root_OTU))]
+phy_distances_table_Rhizo<-phy_distances_table[c(row.names(Rhizo_OTU)),c(row.names(Rhizo_OTU))]
+phy_distances_table_Leaf<-phy_distances_table[c(row.names(Leaf_OTU)),c(row.names(Leaf_OTU))]
+#to create the phylogenetic distance for each distance table
+phy_dist_Root<-as.dist(phy_distances_table_Root)
+phy_dist_Rhizo<-as.dist(phy_distances_table_Rhizo)
+phy_dist_Leaf<-as.dist(phy_distances_table_Leaf)
+```
+
+Perform Mantels test with vegan and stores values in a new dataframe 
+```{r}
+test<-character()
+Mstat<-numeric()
+signif<-numeric()
+mantels<-data.frame(test,Mstat,signif)
+#spearman
+mantel_Root<-vegan::mantel(phy_dist_Root, Root_dist, method="spearman",permutations=9999,strata=NULL)
+mantels<-rbind(mantels, data.frame(test=c("phy_Root"),Mstat=mantel_Root$statistic,signif=mantel_Root$signif))
+
+mantel_Rhizo<-vegan::mantel(phy_dist_Rhizo, Rhizo_dist, method="spearman",permutations=9999,strata=NULL)
+mantels<-rbind(mantels, data.frame(test=c("phy_Rhizo"),Mstat=mantel_Rhizo$statistic,signif=mantel_Rhizo$signif))
+
+mantel_Leaf<-vegan::mantel(phy_dist_Leaf, Leaf_dist, method="spearman",permutations=9999,strata=NULL)
+mantels<-rbind(mantels, data.frame(test=c("phy_Leaf"),Mstat=mantel_Leaf$statistic,signif=mantel_Leaf$signif))
+
+mantels<-cbind(mantels,reshape2::colsplit(mantels$test,pattern="_",names=c("None","SampleType")))
+mantels$SampleType<-factor(mantels$SampleType, levels=c("Leaf","Root","Rhizo"))
+mantels
+# write.table(mantels, "figure1d_mantel.csv", sep=",", row.names=FALSE, quote=FALSE)
+```
+
+Plot Figure 1d
+```{r}
+p1d <- ggplot(data=mantels,aes(x=SampleType,y=Mstat, fill=SampleType)) + 
+              geom_bar(stat="identity")+
+              scale_fill_manual(values=c("#9ACAA1","#E1D337", "#CE8764"))+
+              ylim(-0.05,0.15)
+p1d
+# ggsave("figure_1d.pdf", plot = p1d, width=6, height=5, useDingbats=FALSE)
+# ggsave("figure_1d.png", plot = p1d, width=6, height=5, dpi=600)
+```
+
+#Figure 2
+```{r}
+#Figure 2 color palette
+F2B_palette <- c( "#599ec4" #ST Giles Blue
+                ,"#a1c5c8" #Blue Ground
+                ,"#7997a1" #Stone Blue
+                ,"#427e83" #Vardo
+                ,"#84b59c" #Arsenic
+                ,"#919f70" #Yeabridge Green
+                ,"#686a47" #Bancha
+                ,"#c8bd83" #Churlish Green
+                ,"#cb9e59" #India Yellow
+                ,"#ecc363" #Babouche
+                ,"#c57b67" #Red Earth
+                ,"#d65f3d" #Charlotte's Locks
+                ,"#a04344" #Incarnadine
+                ,"#bf7a8f" #Rangwali
+                ,"#8B0000"#"dark red"
+                ,"#8d8089" #Brassica
+                ,"#e5e0db" #Strong White
+                ,"#444546") #Off-Black
+                         
+#Top 17 bacterial orders sorted by heritability (at least 6 OTUs in an order)
+sort_order <- c("Sphingobacteriales",
+                "Actinomycetales",
+                "Verrucomicrobiales",
+                "Myxococcales",
+                "Gemmatimonadales",
+                "Rhodospirillales",
+                "Planctomycetales",
+                "Burkholderiales",
+                "Acidobacteriales",
+                "Rhizobiales",
+                "Solirubrobacterales",
+                "Xanthomonadales",
+                "Solibacterales",
+                "Spartobacteriales",
+                "Bacillales",
+                "TM7PH",
+                "Flavobacteriales",
+                "Other")
+```
+
+Figure 2a
+```{r}
+#import data from current working directory
+df <- read.table("fig2_count.txt", header = TRUE)
+df$Order <- factor(df$Order, levels = rev(sort_order))
+df$Group <- factor(df$Group, levels = c("all", "non_herit", "herit"))
+```
+
+Plot Figure 2a
+```{r}
+p2a <- ggplot(data=df, aes(x=Group, y=Count, fill=factor(Order))) +
+              geom_bar(stat="identity",position = "fill") +
+              scale_fill_manual(values = rev(F2B_palette)) +
+              theme_minimal()+
+              theme(axis.text.x=element_text(size=12,color="black",angle=270,hjust=0, vjust=0.5),
+                    axis.text.y=element_text(size=12,color="black"), 
+                    axis.title=element_text(size=16,face="bold"),
+                    text=element_text(size=16))
+p2a
+# ggsave("figure_2a.pdf", plot = p2a, width=4.5, height=6, useDingbats=FALSE)
+# ggsave("figure_2a.png", plot = p2a, width=4.5, height=6, dpi=600)
+```
+
+Figure 2b
+```{r}
+#import data from current working directory
+df <- read.table("fig2_relative.txt", header = TRUE)
+df$Top17_color <- factor(df$Top17_color, levels = sort_order)
+```
+
+Plot Figure 2b
+```{r}
+p2b <- ggplot() + 
+      geom_point(data=df, mapping=aes(x=NormCount, y=NormRelAbun, color=Top17_color, size=all_abun)) +
+      theme_minimal() +
+      xlim(-4,4) +
+      ylim(-5,5)+
+      labs(x = "OTU counts \n Log2(heritable/non-heritable)", y = "Read count abundance \n Log2(heritable/non-heritable)") +
+      scale_color_manual(values = F2B_palette) +
+      geom_vline(xintercept = 0) + 
+      geom_hline(yintercept = 0)
+p2b
+# ggsave("figure_2b.pdf", plot = p2b, width=8, height=6, useDingbats=FALSE)
+# ggsave("figure_2b.png", plot = p2b, width=8, height=6, dpi=600)
+```
+
+#Figure 3
+```{r, results = "hide"}
+#subset overlapping orders
+S_M10_M15_only15 <- c("Caulobacterales","Burkholderiales","Sphingobacteriales","Actinomycetales","Flavobacteriales","Sphingomonadales","Myxococcales","Bacillales","Xanthomonadales","Gemmatimonadales","Verrucomicrobiales","Rhodospirillales","Rhizobiales","Pseudomonadales","BetaproteobacteriaCL")
+m10_m15_all20 <- c("Caulobacterales","Burkholderiales","Sphingobacteriales","Actinomycetales","Flavobacteriales","Sphingomonadales","Myxococcales","Bacillales","Xanthomonadales","Gemmatimonadales","Verrucomicrobiales","Rhodospirillales","Rhizobiales","Pseudomonadales","BetaproteobacteriaCL","Chitinophagales","Pedosphaerales","Nitrospirales","Nevskiales","MND1")
+m10_only17 <- c("Caulobacterales","Burkholderiales","Sphingobacteriales","Actinomycetales","Flavobacteriales","Sphingomonadales","Myxococcales","Bacillales","Xanthomonadales","Gemmatimonadales","Verrucomicrobiales","Rhodospirillales","Rhizobiales","Pseudomonadales","BetaproteobacteriaCL","Solibacterales","A4b")
+m10_all28 <- c("Caulobacterales","Burkholderiales","Sphingobacteriales","Actinomycetales","Flavobacteriales","Sphingomonadales","Myxococcales","Bacillales","Xanthomonadales","Gemmatimonadales","Verrucomicrobiales","Rhodospirillales","Rhizobiales","Pseudomonadales","BetaproteobacteriaCL","Solibacterales","A4b","Nitrososphaerales","SC-I-84","258ds10","Opitutales","AcidobacteriaCL","Micromonosporales","Chitinophagales","Pedosphaerales","Nitrospirales","Nevskiales","MND1")
+m15_only19 <- c("Caulobacterales","Burkholderiales","Sphingobacteriales","Actinomycetales","Flavobacteriales","Sphingomonadales","Myxococcales","Bacillales","Xanthomonadales","Gemmatimonadales","Verrucomicrobiales","Rhodospirillales","Rhizobiales","Pseudomonadales","BetaproteobacteriaCL","Planctomycetales","Acidobacteriales","Methylophilales","Thiotrichales")
+m15_all47 <- c("Xanthomonadales", "Gemmatimonadales", "Verrucomicrobiales", "Rhodospirillales", "Rhizobiales", "Pseudomonadales", "BetaproteobacteriaCL", "Planctomycetales", "Acidobacteriales", "Methylophilales", "Thiotrichales", "Gemm-3CL", "MIZ46", "Solirubrobacterales", "Ellin6529CL", "Sva0725", "Gaiellales", "Acidimicrobiales", "Ellin5290", "Bdellovibrionales", "Rhodobacterales", "Gemm-1CL", "Rickettsiales", "AKYG885", "C0119CL", "Pirellulales", "Bacteroidales", "order 11-24", "0319-7L14", "Spirobacillales", "Micrococcales", "Legionellales", "Unassigned", "Ellin6067", "Chitinophagales", "Pedosphaerales", "Nitrospirales", "Nevskiales", "MND1")
+
+#import data from current working directory
+rar1 <- readRDS("fig3_200line.rds")
+otus <- taxa_names(rar1)
+out <- data.frame(subset=character(), 
+                  S_M10_M15_only15=numeric(), 
+                  m10_m15_all20=numeric(), 
+                  m10_only17=numeric(), 
+                  m10_all28=numeric(), 
+                  m15_only19=numeric(), 
+                  m15_all47=numeric(), 
+                  stringsAsFactors=FALSE) 
+#perform subsampling
+for(i in 1:10000){
+  print(i)
+  subset <- sample(otus, 100, replace = FALSE, prob = NULL)
+  all_taxa <- as.data.frame(rar1@tax_table@.Data)
+  subset_taxa <- subset(all_taxa, row.names(all_taxa) %in% subset)
+  subset_order <- unique(factor(subset_taxa$Order))
+  
+  a <- length(intersect(subset_order, S_M10_M15_only15))
+  b <- length(intersect(subset_order, m10_m15_all20))
+  c <- length(intersect(subset_order, m10_only17))
+  d <- length(intersect(subset_order, m10_all28))
+  e <- length(intersect(subset_order, m15_only19))
+  f <- length(intersect(subset_order, m15_all47))
+  
+  add <- data.frame(subset=paste0("subset",1), 
+                    S_M10_M15_only15=a, 
+                    m10_m15_all20=b, 
+                    m10_only17=c, 
+                    m10_all28=d, 
+                    m15_only19=e, 
+                    m15_all47=f) 
+  out <- rbind(out, add)
+}
+```
+
+Export results of 10,000 permutations
+```{r}
+plot(density(out$S_M10_M15_only15))
+plot(density(out$m10_m15_all20))
+plot(density(out$m10_only17))
+plot(density(out$m10_all28))
+plot(density(out$m15_only19))
+plot(density(out$m15_all47))
+# write.table(out, "figure_3_permutations.csv", sep=",", row.names=FALSE, quote=FALSE)
+```
+
+#Figure 4
+```{r}
+#import data from current working directory
+qval <- read.csv("fig4_pc1.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+Plot figure 4a
+```{r}
+p4a <- qqman::manhattan(na.omit(geno), suggestiveline = F, col = c("#E09E19", "#2D637F")) #export pdf size width=10, height=3.5, png width = 1000, height = 350
+```
+
+Figure 4b allele ratio heatmap
+```{r}
+#import data from current working directory
+ch4_figure4 <- read.csv("fig4_ch4.txt")
+#Figure 4b color palette
+F4B_palette <- c("#cb9e59"#"Acidobacteriales"  
+                ,"#a1c5c8"#"Actinomycetales" 
+                ,"#8B0000"#"Bacillales" 
+                ,"#c8bd83"#"Burkholderiales"  
+                ,"#84b59c"#"Gemmatimonadales" 
+                ,"#427e83"#"Myxococcales"  
+                ,"#444546" #"Other"
+                ,"#a04344"#"Solibacterales"   
+                ,"#c57b67"#"Solirubrobacterales"
+                ,"#bf7a8f"#"Spartobacteriales"  
+                ,"#599ec4"#"Sphingobacteriales" 
+                ,"#7997a1"#"Verrucomicrobiales" 
+                ,"#d65f3d")#"Xanthomonadales" 
+```
+
+Plot figure 4b allele ratio heatmap
+```{r}
+#plot major/minor allele ratio (Log2) with red/blue gradient
+p4b1 <- ggplot(data=ch4_figure4, aes(x=Manual_Rank_fig4, y=1, fill= Log2ratio)) +
+              geom_tile(color = "white")+
+              scale_fill_gradient2(low = "#4f94cd", high = "#ee2c2c", mid = "white", 
+                                   midpoint = 0, limit = c(-1.5,1), space = "Lab") +
+              theme_minimal()+ 
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                    axis.title.y=element_blank())+
+              coord_fixed()
+p4b1
+# ggsave("figure_4b-1.pdf", plot = p4b1, width=10, height=3, useDingbats=FALSE)
+# ggsave("figure_4b-1.png", plot = p4b1, width=10, height=3, dpi=600)
+
+#plot monoderm/diderm
+p4b2 <- ggplot(data=ch4_figure4, aes(x=Manual_Rank_fig4, y=1, fill= MonoDiderm)) +
+              geom_tile()+
+              theme_minimal()+ 
+              scale_fill_manual(values = c("#50414c","#e5e0db","#cb9e59" )) +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                    axis.title.y=element_blank())+
+              coord_fixed()
+p4b2
+# ggsave("figure_4b-2.pdf", plot = p4b2, width=10, height=3, useDingbats=FALSE)
+# ggsave("figure_4b-2.png", plot = p4b2, width=10, height=3, dpi=600)
+
+#plot orders
+p4b3 <- ggplot(data=ch4_figure4, aes(x=Manual_Rank_fig4, y=1, fill= Order_fig4)) +
+              geom_tile()+
+              theme_minimal()+ 
+              scale_fill_manual(values = (F4B_palette)) +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                    axis.title.y=element_blank())+
+              coord_fixed()
+p4b3
+# ggsave("figure_4b-3.pdf", plot = p4b3, width=10, height=6, useDingbats=FALSE)
+# ggsave("figure_4b-3.png", plot = p4b3, width=10, height=6, dpi=600)
+```
+
+Figure 4b GWAS heatmap
+```{r}
+#import data from current working directory
+goi <- readRDS("fig4_ch4.rds")
+##rank OTUs
+levels_otu <- c(rev(c("X1039","X172","X544","X798","X1170","X78","X30","X506","X996",
+                      "X1289","X11","X325","X1239","X326","X461","X904","X943","X190",
+                      "X1020","X199","X1190","X302","X692","X14","X695","X286","X94","X82",
+                      "X766","X312","X531","X734","X205","X148","X340","X318","X577","X18",
+                      "X947","X445")),"PC1")
+goi$otu <- factor(x = goi$otu, levels = levels_otu, ordered = TRUE)
+length(levels(factor(goi$rs)))
+```
+
+Plot figure 4b GWAS heatmap
+```{r}
+p4b4 <- ggplot(data = goi, aes(x = rs, y = otu)) +
+              geom_tile(aes(fill = -log10(goi$p_score))) +
+              scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,2,4,6,8)),guide = "colorbar") +
+              theme(axis.title.y = element_blank(),
+                    axis.ticks.y = element_blank(),
+                    legend.position = "top")
+p4b4
+# ggsave("figure_4b-4.pdf", plot = p4b4, width=6, height=6, useDingbats=FALSE)
+# ggsave("figure_4b-4.png", plot = p4b4, width=6, height=6, dpi=600)
+```
+
+Figure 4c
+```{r}
+#import data from current working directory
+SorghumGenes<-read.table(file = "fig4_sorghum.txt",header = T,sep = "\t")
+SorghumGenes <-reshape2::melt(SorghumGenes)
+SorghumGenes = data.frame(SorghumGenes)
+#rank sorghum genes in chromosome 4 locus
+Gene_Anno <- c("Uncharacterized protein1",
+               "Disease resistance protein (RGA2)",
+               "chromatin assembly factor 1 subunit A (CHAF1A)",
+               "stearoyl-[acyl-carrier-protein] 9-desaturase 5 (SAD5)",
+               "F-box/kelch-repeat protein",
+               "exocyst complex component (EXO70B1)",
+               "Uncharacterized protein2",
+               "Uncharacterized protein3",
+               "beta-sesquiphellandrene synthase-like protein",
+               "Endo-1,4-beta-xylanase like protein",
+               "Uncharacterized protein4",
+               "Ser/Thr-protein phosphatase 6 regulatory ankyrin repeat subunit C (ANKRD52)",
+               "ubiquitin-like modifier-activating enzyme 5(UBA5)",
+               "chaperone protein, DnaJ-like",
+               "protein indeterminate-domain 16 (IDD16)",
+               "choline/ethanolamine kinase",
+               "Uncharacterized protein5",
+               "Uncharacterized protein6",
+               "NDR1/HIN1-like protein 6 (NHL6)",
+               "gamma carbonic anhydrase-like 2 (GCAL2)",
+               "Uncharacterized protein7",
+               "Uncharacterized protein8",
+               "Uncharacterized protein9",
+               "DnaJ subfamily B member",
+               "U6 snRNA-associated Sm-like protein (LSM6)",
+               "acetolactate synthase 1 (ALS1)",
+               "heavy metal-associated isoprenylated plant protein 7 (HIP7)")
+```
+
+Plot figure 4c
+```{r}
+p4c <- ggplot(data = SorghumGenes, aes(x = rev(variable), y = Gene_annotation)) +
+              geom_tile(aes(fill = value)) +
+              scale_y_discrete(limits = rev(Gene_Anno))+
+              scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1,2,10,30)),guide = "colorbar") +
+              theme(axis.title.y = element_blank(),
+                    axis.ticks = element_blank(),
+                    axis.text.x = element_text(size=5),
+                    axis.text.y = element_text(size=5),
+                    legend.text=element_text(size=5))
+p4c
+# ggsave("figure_4c.pdf", plot = p4c, width=5, height=6, useDingbats=FALSE)
+# ggsave("figure_4c.png", plot = p4c, width=5, height=6, dpi=600)
+```
+
+#Figure 5
+```{r}
+#import data from current working directory
+rar1 <- readRDS("fig5_validation.rds")
+rar1
+OTU1 = data.frame(otu_table(rar1))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+#if(taxa_are_rows(current)){OTU1 <- t(OTU1)}
+# Coerce to data.frame
+OTUdf <- as.data.frame(OTU1)
+## orgnize metadata file
+metacurrent <- data.frame(sample_data(rar1))
+#rhizosphere subset
+rhizo <- subset_samples(rar1, Sampletype == "Rhizosphere")
+rhizo <- prune_taxa(taxa_sums(rhizo) > 0, rhizo)
+rhizo
+#perform CAP ordination
+ordcap = ordinate(rhizo, "CAP", "bray", ~Group)
+```
+
+Plot figure 5a
+```{r}
+p5a <- plot_ordination(rhizo, ordcap, "samples", color="Group") +
+                      geom_point(size=5) +
+                      scale_color_manual(values=c("#a04344", "#2D637F")) +
+                      theme(legend.title = element_text(colour="black", size=11, face="bold")) +
+                      theme(legend.text = element_text(colour="black", size = 11, face = "bold"))+
+                      theme(axis.text.x=element_text(hjust=1,vjust=0.5,size=10,color="black",angle=90,face="bold"), 
+                            axis.text.y=element_text(size=11,color="black",face="bold"), 
+                            axis.title=element_text(size=11,face="bold"),text=element_text(size=11,face="bold"),
+                            legend.position = "right")
+p5a
+# ggsave("figure_5a.pdf", plot = p5a, width=5, height=5, useDingbats=FALSE)
+# ggsave("figure_5a.png", plot = p5a, width=5, height=5, dpi=600)
+```
+
+Figure 5b
+```{r}
+#import data from current working directory
+indic <- read.table("fig5_indicators.txt", header = TRUE)
+
+#Figure 5b color palette
+F5B_palette <-c("#cb9e59" #"Acidobacteriales"
+                ,"#a1c5c8" #"Actinomycetales"
+                ,"#c8bd83" #"Burkholderiales"
+                ,"#84b59c" #"Gemmatimonadales"
+                ,"#444546" #"Other"
+                ,"#919f70" #"Rhodospirillales"
+                ,"#c57b67" #"Solirubrobacterales"
+                ,"#599ec4" #"Sphingobacteriales"
+                ,"#d65f3d") #"Xanthomonadales"
+```
+
+Plot figure 5b
+```{r}
+#plot orders
+p5b1 <- ggplot(data=indic, aes(x=Manual_Rank_fig5, y=1, fill= Order_fig5)) +
+              geom_tile()+
+              theme_minimal()+ 
+              scale_fill_manual(values = (F5B_palette)) +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                    axis.title.y=element_blank())+
+              coord_fixed()
+p5b1
+# ggsave("figure_5b-1.pdf", plot = p5b1, width=10, height=4, useDingbats=FALSE)
+# ggsave("figure_5b-1.png", plot = p5b1, width=10, height=4, dpi=600)
+
+#plot monoderm/diderm
+p5b2 <- ggplot(data=indic, aes(x=Manual_Rank, y=1, fill= CellWall)) +
+              geom_tile()+
+              theme_minimal()+ 
+              scale_fill_manual(values = c("#50414c","#e5e0db","#cb9e59" )) +
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                    axis.title.y=element_blank())+
+              coord_fixed()
+p5b2
+# ggsave("figure_5b-2.pdf", plot = p5b2, width=10, height=3, useDingbats=FALSE)
+# ggsave("figure_5b-2.png", plot = p5b2, width=10, height=3, dpi=600)
+
+#Plot major/minor allele ratio (Log2) with red/blue gradient
+p5b3 <- ggplot(data=indic, aes(x=Manual_Rank_fig5, y=1, fill= Log2ratio)) +
+              geom_tile(color = "white")+
+              scale_fill_gradient2(low = "#4f94cd", high = "#ee2c2c", mid = "white", 
+                                   midpoint = 0, limit = c(-2,2), space = "Lab") +
+              theme_minimal()+ 
+              theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                    axis.title.y=element_blank())+
+              coord_fixed()
+p5b3
+# ggsave("figure_5b-3.pdf", plot = p5b3, width=10, height=3, useDingbats=FALSE)
+# ggsave("figure_5b-3.png", plot = p5b3, width=10, height=3, dpi=600)
+```
+
+#Supplemental Figure 1
+```{r}
+#Supplemental Figure 1 color palette
+farrowAndBall_palette <- c(
+  "#4d5b6a" #Stiffkey Blue
+  ,"#6a90b4" #Cook's Blue
+  ,"#599ec4" #ST Giles Blue
+  ,"#a1c5c8" #Blue Ground
+  ,"#7997a1" #Stone Blue
+  ,"#427e83" #Vardo
+  ,"#84b59c" #Arsenic
+  ,"#919f70" #Yeabridge Green
+  ,"#686a47" #Bancha
+  ,"#c8bd83" #Churlish Green
+  ,"#cb9e59" #India Yellow
+  ,"#ecc363" #Babouche
+  ,"#c57b67" #Red Earth
+  ,"#d65f3d" #Charlotte's Locks
+  ,"#a04344" #Incarnadine
+  ,"#bf7a8f" #Rangwali
+  ,"#8d8089" #Brassica
+  ,"#50414c" #Pelt
+  ,"#e5e0db" #Strong White
+  ,"#444546") #Off-Black
+```
+
+Supplemental Figure 1 (200 lines)
+```{r}
+#import data from current working directory
+rar_current <- readRDS("fig3_200line.rds") #same RDS that was used in figure3
+rar_current
+rar_trans  <- transform_sample_counts(rar_current, function(x) 100 * x / sum(x) )
+# Agglomerate Taxa 
+glom_Order <- tax_glom(rar_trans, taxrank = "Order")
+glom_Order
+## pick a taxonomic level
+taxrank_level = "Order"
+gloms <- get(paste0("glom_", taxrank_level))
+dim(otu_table(gloms))[1]
+gloms
+## get top 15 orders
+others <- names(sort(taxa_sums(gloms), decreasing = TRUE)[16:length(names(taxa_sums(gloms)))])
+gloms <- merge_taxa(gloms, others, 1)
+gloms
+# sort orders based on relative abundance
+# get otu table
+ratab <- data.frame(otu_table(gloms))
+dim(ratab)
+# calculate average relative abundance for all the samples
+ratab <- data.frame(rowMeans(ratab))
+colnames(ratab) <- "Relative_Abundance"
+# merge otu table with taxonomy table
+ratab <- merge(as.data.frame(gloms@tax_table@.Data), ratab, by = "row.names")
+# sorting taxa by abundance from high to low for RA
+sort0 <- c()
+sort0 <- ratab[with(ratab, order(ratab$Relative_Abundance)),][[taxrank_level]]
+sort0 <- as.vector(sort0)
+sort0[is.na(sort0)] <- "Other"
+sort0 <- sort0[! sort0 %in% "Other"]
+sort0 <- c("Other", sort0)
+sort0
+## melt dataframe
+melts <- psmelt(gloms)
+# convert Class to a character vector from a factor 
+str(melts[[taxrank_level]])
+melts[[taxrank_level]] <- as.character(melts[[taxrank_level]])
+# replace all NAs with Other
+melts[[taxrank_level]][is.na(melts[[taxrank_level]])] <- "Other"
+# convert Class back to a factor
+melts[[taxrank_level]] <- as.factor(melts[[taxrank_level]])
+levels(factor(melts[[taxrank_level]]))
+melts$Order <- factor(melts$Order, levels=sort0)
+# sort taxa
+summary(melts)
+```
+
+Plot 200 lines
+```{r}
+# plot relative abundance for rhizosphere (200 lines, merged)
+ps1_1 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxrank_level)))) +
+                geom_bar(stat="identity",position = "stack") +
+                scale_fill_manual(values = farrowAndBall_palette[1:16]) +
+                theme(axis.text.x=element_text(size=12,color="black",angle=90), 
+                      axis.text.y=element_text(size=12,color="black"), 
+                      axis.title=element_text(size=16,face="bold"),
+                      text=element_text(size=16)) +
+                guides(fill=guide_legend(title=taxrank_level))
+ps1_1
+# ggsave("figure_S1-1.pdf", plot = ps1_1, width=4.5, height=8, useDingbats=FALSE)
+# ggsave("figure_S1-1.png", plot = ps1_1, width=4.5, height=8, dpi=600)
+
+# plot relative abundance for rhizosphere (200 lines, separate)
+ps1_2 <-ggplot(data=melts, aes(x=Line, y=Abundance, fill=factor(get(taxrank_level)))) +
+                geom_bar(stat="identity", width=1, position = "fill") +
+                scale_fill_manual(values = farrowAndBall_palette[1:16]) +
+                theme(axis.text.x=element_text(size=12,color="black",angle=90), 
+                      axis.text.y=element_text(size=12,color="black"), 
+                      axis.title=element_text(size=16,face="bold"),
+                      text=element_text(size=16)) +
+                guides(fill=guide_legend(title=taxrank_level))
+ps1_2
+# ggsave("figure_S1-2.pdf", plot = ps1_2, width=8, height=8, useDingbats=FALSE)
+# ggsave("figure_S1-2.png", plot = ps1_2, width=8, height=8, dpi=600)
+```
+
+Supplemental Figure 1 (24 lines)
+  Note:24 line chunk must be run after the 200 line chunk above, due to dependencies
+```{r}
+#import data from current working directory
+rar_current <- readRDS("fig1_24line.rds") #same RDS that was used in figure1
+rar_current 
+rar_trans  <- transform_sample_counts(rar_current, function(x) 100 * x / sum(x) )
+#Agglomerate Taxa 
+## pick a taxanomic level
+taxrank_level = "Order"
+gloms <- tax_glom(rar_trans, taxrank = taxrank_level)
+gloms
+## get tax table
+tax_24 <- as.data.frame(gloms@tax_table@.Data)
+others <- rownames(subset(tax_24, ! tax_24$Order %in% sort0))
+## get 15 orders
+gloms <- merge_taxa(gloms, others, 1)
+gloms
+## melt dataframe
+melts <- psmelt(gloms)
+#convert Class to a character vector from a factor 
+str(melts[[taxrank_level]])
+melts[[taxrank_level]] <- as.character(melts[[taxrank_level]])
+#replace all NAs with Other
+melts[[taxrank_level]][is.na(melts[[taxrank_level]])] <- "Other"
+# convert Class back to a factor
+melts[[taxrank_level]] <- as.factor(melts[[taxrank_level]])
+levels(factor(melts[[taxrank_level]]))
+melts$Order <- factor(melts$Order, levels=sort0)
+#sort taxa
+summary(melts)
+melts$Sampletype <- factor(melts$Sampletype, levels = c("Leaf", "Root", "Rhizo"))
+```
+
+Plot 24 lines
+```{r}
+ps1_3 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxrank_level)))) +
+                geom_bar(stat="identity",position = "fill") +
+                scale_fill_manual(values = farrowAndBall_palette[1:16]) +
+                theme(axis.text.x=element_text(size=12,color="black",angle=90), 
+                      axis.text.y=element_text(size=12,color="black"), 
+                      axis.title=element_text(size=16,face="bold"),
+                      text=element_text(size=16)) +
+                guides(fill=guide_legend(title=taxrank_level))
+ps1_3
+# ggsave("figure_S1-3.pdf", plot = ps1_3, width=6, height=8, useDingbats=FALSE)
+# ggsave("figure_S1-3.png", plot = ps1_3, width=6, height=8, dpi=600)
+```
+
+#Supplemental Figure2
+Supplemental Figure 2a
+```{r}
+#import data from current working directory
+pcs <- read.table("figS2_top10PC.txt", header = TRUE)
+pcs$Top10PCs <- factor(pcs$Top10PCs, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10"))
+```
+
+Plot for Supplemental Figure 2a
+```{r}
+ps2a <- ggplot(data=pcs, aes(x=Top10PCs, y=ProportionExplained, fill=level)) +
+                geom_bar(stat="identity") +
+                scale_fill_manual(values=c("#E09E19", "#2D637F"))
+ps2a
+# ggsave("figure_S2a.pdf", plot = ps2a, width=6, height=4, useDingbats=FALSE)
+# ggsave("figure_S2a.png", plot = ps2a, width=6, height=4, dpi=600)
+```
+
+Supplemental Figure 2b
+```{r}
+#get snp region of interest for chromosome4 (used to specify SNPs within ch4 locus)
+qval <- read.csv("PC1.assoc.txt", header = TRUE, sep = "\t")
+ch4 <- subset(qval, chr == 4)
+goi <- subset(ch4, ps > 47500000 & ps < 49000000)
+snpsOfInterest4 <- levels(factor(goi$rs))
+#get snp of interest for chromosome6 (used to specify SNPs within ch6 locus)
+ch6 <- subset(qval, chr == 6)
+goi <- subset(ch6, ps > 50000000 & ps < 51000000)
+snpsOfInterest6 <- levels(factor(goi$rs))
+```
+
+subset for PC1 / chromosome 4
+```{r}
+qval <- read.csv("PC1.assoc.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confirm for multi test correnction
+chr4 <- subset(qval, chr ==4)
+qval <- chr4
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+
+Plot for Supplemental Figure 2b (PC1)
+```{r}
+ps2b1 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest4) #export pdf size width=3, height=6, png width = 300, height = 600
+#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest4) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.
+```
+
+subset for PC5 / chromosome 6
+```{r}
+qval <- read.csv("PC5.assoc.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confrim for multi test correnction
+chr6 <- subset(qval, chr ==6)
+qval <- chr6
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+Plot for Supplemental Figure 2b (PC5)
+```{r}
+ps2b2 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #export pdf size width=3, height=6, png width = 300, height = 600
+#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.     
+```
+
+subset for PC10 / chromosome 6
+```{r}
+qval <- read.csv("PC10.assoc.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confrim for multi test correnction
+chr6 <- subset(qval, chr ==6)
+qval <- chr6
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+Plot for Supplemental Figure 2b (PC10)
+
+```{r}
+ps2b3 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #export pdf size width=3, height=6, png width = 300, height = 600
+#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.     
+```
+
+Supplemental figure 2c
+```{r}
+#OTU list generated from Figure4_get_otus.R
+#the list is called out_all
+#OTU within the chromosome4 locus
+out0 <- rev(c("PC1","X692","X14","X172","X544","X798","X1170","X78","X30","X312","X766","X1020","X199","X734","X318","X577",	
+            "X947","X1190","X190","X445","X302","X531","X1289","X11","X325","X1239","X904","X943","X1039","X506","X94",
+            "X82","X326","X461","X695","X286","X205","X148","X340","X996"))
+#OTU within for chromosome6 locus
+out1 <- c("PC10","PC5","X323","X1103","X802","X359","X846","X422","X730","X521","X682","X1158")
+#OTU shared with both chromosome4 and 6 loci
+out_all <- c(out1[! out1 %in% "X18"], "X18", out0[! out0 %in% "X18"])
+otuhits <- out_all
+```
+
+Supplemental figure 2c (Ch4)
+```{r results="hide"}
+#get snps data
+goi <- data.frame()
+for(i in 1:length(otuhits)){
+  oid <- otuhits[i]
+  print(i)
+  print(oid)
+  file <- paste0(oid, ".assoc.txt")
+  a <- fread(file, data.table=FALSE)
+  ch4 <- subset(a, chr == 4)
+  ch4$file <- file
+  ch4$otu <- gsub(".*\\/|.assoc.txt", "", ch4$file)
+  goi_add <- subset(ch4, ps > 47500000 & ps < 49000000)
+  goi <- rbind(goi, goi_add)
+}
+#rank otu
+goi$otu <- factor(x = goi$otu, levels = out_all, ordered = TRUE)
+length(levels(factor(goi$rs)))
+```
+
+Plot for Supplemental Figure 2c (ch4)
+```{r}
+ps2c1 <- ggplot(data = goi, aes(x = rs, y = otu)) +
+                geom_tile(aes(fill = -log10(goi$p_score))) +
+                scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1.5,3,6,9)),guide = "colorbar") +
+                theme(axis.title.y = element_blank(),
+                      axis.ticks.y = element_blank(),
+                      legend.position = "top")
+ps2c1
+# ggsave("figure_S2c-1.pdf", plot = ps2c1, width=6, height=8, useDingbats=FALSE)
+# ggsave("figure_S2c-1.png", plot = ps2c1, width=6, height=8, dpi=600)
+```
+
+Supplemental figure 2c (Ch6)
+```{r results="hide"}
+#get snps data
+goi <- data.frame()
+for(i in 1:length(otuhits)){
+  oid <- otuhits[i]
+  print(i)
+  print(oid)
+  file <- paste0(oid, ".assoc.txt")
+  a <- fread(file, data.table=FALSE)
+  ch6 <- subset(a, chr == 6)
+  ch6$file <- file
+  ch6$otu <- gsub(".*\\/|.assoc.txt", "", ch6$file)
+  goi_add <- subset(ch6, ps > 50000000 & ps < 51000000)
+  goi <- rbind(goi, goi_add)
+}
+##rank otu
+goi$otu <- factor(x = goi$otu, levels = out_all, ordered = TRUE)
+length(levels(factor(goi$rs)))
+```
+
+Plot for Supplemental Figure 2c (ch6)
+```{r}
+ps2c2 <- ggplot(data = goi, aes(x = rs, y = otu)) +
+                geom_tile(aes(fill = -log10(goi$p_score))) +
+                scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1.5,3,6,9)),guide = "colorbar") +
+                theme(axis.title.y = element_blank(),
+                      axis.ticks.y = element_blank(),
+                      legend.position = "top")
+# ggsave("figure_S2c-2.pdf", plot = ps2c2, width=6, height=8, useDingbats=FALSE)
+# ggsave("figure_S2c-2.png", plot = ps2c2, width=6, height=8, dpi=600)
+```
+
+Supplemental figure 2c (bacterial order)
+```{r}
+#import data from current working directory
+qval <-read.csv("figS2_order.txt")
+
+#Color palette used for supplemental figure 2c
+FS2C_palette <- c("#cb9e59"#"Acidobacteriales"  
+                ,"#a1c5c8"#"Actinomycetales" 
+                ,"#8B0000"#"Bacillales" 
+                ,"#c8bd83"#"Burkholderiales"  
+                ,"#84b59c"#"Gemmatimonadales" 
+                ,"#427e83"#"Myxococcales"  
+                ,"#444546" #"Other"
+                ,"#ecc363" #Rhizobiales
+                ,"#919f70"#Rhodospirillales
+                ,"#a04344"#"Solibacterales"   
+                ,"#c57b67"#"Solirubrobacterales"
+                ,"#bf7a8f"#"Spartobacteriales"  
+                ,"#599ec4"#"Sphingobacteriales" 
+                ,"#7997a1"#"Verrucomicrobiales" 
+                ,"#d65f3d")#"Xanthomonadales" 
+```
+
+Plot for Supplemental Figure 2c (bacterial order)
+```{r}
+ps2c3 <- ggplot(data=qval, aes(x=rank, y=1, fill= Order)) +
+                geom_tile()+
+                theme_minimal()+ 
+                scale_fill_manual(values = (FS2C_palette)) +
+                theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                      axis.title.y=element_blank())+
+                coord_fixed()
+ps2c3
+# ggsave("figure_S2c-3.pdf", plot = ps2c3, width=10, height=6, useDingbats=FALSE)
+# ggsave("figure_S2c-3.png", plot = ps2c3, width=10, height=6, dpi=600)
+```
+
+
+
+
+
