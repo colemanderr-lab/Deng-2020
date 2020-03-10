@@ -1,0 +1,459 @@
+---
+title: "data normalization, heritability analysis, and GWAS analysis for sorghum rhizosphere GWAS"
+author: "Siwen Deng Ph.D. and Daniel F. Caddell Ph.D."
+date: "2/24/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, eval=FALSE}
+#load packages
+library("phyloseq"); packageVersion("phyloseq")
+library("ggplot2"); packageVersion("ggplot2")
+library("scales")
+library("grid")
+library("DESeq2")
+library("ape")
+library("reshape2")
+library("vegan")
+library("data.table")
+
+##import OTU biom file, sample file, and tree file
+rhizo <- readRDS("~/data/rhizo_all.rds")
+rhizo <- subset_samples(rhizo, SampleID != "B4_sb306_H")
+rhizo <- subset_samples(rhizo, SampleID != "B6_sb235_H")
+```
+
+## Plot raw readcount to check sequencing depth across samples
+```{r, eval=FALSE}
+#plot raw data readcount
+x = data.frame(colSums(otu_table(rhizo)))
+colnames(x) <- "read"
+range(x$read)
+x$ID <- row.names(x)
+x <- x[with(x,order(read)), ] ## Sorting
+level_set <- x$ID
+x$ID <- factor(x$ID, levels=level_set)
+p <- ggplot(x, aes(x = ID, y = read)) + 
+  geom_bar(stat = "identity") +
+  labs(y = "Read Counts") +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_text(size=18,color="black"),
+        axis.title=element_text(size=18,face="bold"),
+        text=element_text(size=18))
+p
+```
+
+## Data filteration
+### For all Rhizosphere samples
+```{r, eval=FALSE}
+#Remove OTUs not seen more than 3 times in at least 20% of the samples.
+#This protects against an OTU with small mean & trivially large C.V.
+filter1 <- filter_taxa(rhizo, function(x) sum(x > 3) >= (0.2*length(x)), TRUE) 
+filter1 #1186
+```
+
+
+## Normalization
+### Rarefication
+```{r, eval=FALSE}
+#rarefy to even depth
+rar1 <- rarefy_even_depth(physeq = filter1, sample.size = 18000, replace = FALSE)
+rar1 #1186 taxa
+
+saveRDS(object = rar1, file = "fig3_200line.rds")
+sample_data(rar1)
+sample_variables(rar1)
+
+#plot rarefied sample readcount to check
+x = data.frame(colSums(otu_table(rar1)))
+colnames(x) <- "read"
+x$ID <- row.names(x)
+x <- x[with(x,order(read)), ] ## Sorting
+level_set <- x$ID
+x$ID <- factor(x$ID, levels=level_set)
+p <- ggplot(x, aes(x = ID, y = read)) + 
+  geom_bar(stat = "identity") +
+  labs(y = "Read Counts") +
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_text(size=18,color="black"),
+        axis.title=element_text(size=18,face="bold"),
+        text=element_text(size=18))
+p
+```
+
+
+### Cummulative sum scaling for h2 and GWAS
+```{r, eval=FALSE}
+library("metagenomeSeq")
+current <- filter1
+current
+MGS <- phyloseq_to_metagenomeSeq(current)
+p <- cumNormStatFast(MGS, pFlag = TRUE)
+p
+# calculate the scaling factors using cumNorm
+MGS <- cumNorm(MGS, p =p)
+# export normalized count matrices
+otu_norm = MRcounts(MGS, norm = TRUE, log = TRUE)
+current_css <- current
+otu_table(current_css) <- phyloseq::otu_table(otu_norm, taxa_are_rows = T)
+filter1_css <- current_css
+# save sample statistics (sample scaling factor, quantile value, number of identified features and library size)
+exportStats(MGS, file = file.path("data/1.OTU_method",
+"filter1_css_stats.tsv"))
+max(sample_sums(filter1))/min(sample_sums(filter1))
+max(sample_sums(filter1_css))/min(sample_sums(filter1_css))
+```
+
+### Performs the Shapiro-Wilk test of normality of the data
+```{r}
+## get OTU table
+OTU1 = data.frame(otu_table(filter1_css))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+if(taxa_are_rows(current)){OTU1 <- t(OTU1)}
+# Coerce to data.frame
+OTUdf = as.data.frame(OTU1)
+
+### function for normality test
+stest <- function(x){
+    test <- shapiro.test(x)
+    return(test$p.value)
+} 
+
+# before transformation
+t <- OTUdf
+out <- data.frame(oid=names(t), p=-9)
+out$p <- apply(t, 2, stest)
+
+# how many OTUs have normal distribuition
+check <- subset(out, out$p > 0.05)
+```
+
+
+```{r}
+save.image("data/1.OTU_method/otu_10192018.RData")
+```
+
+#getting PCs for the OTU table
+
+```{r}
+## get OTU table
+OTU1 = data.frame(otu_table(rar1))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+if(taxa_are_rows(rar1)){OTU1 <- t(OTU1)}
+# Coerce to data.frame
+OTUdf = as.data.frame(OTU1)
+#using prcomp
+pca <- prcomp(OTUdf)
+smry1 <- summary(pca)
+pc_table <- data.frame(smry1$x)
+variance <- data.frame(t(as(smry1$importance, "matrix"))) #chose top 10 PCs for the downstream analysis
+pc_table <- pc_table[,1:10]
+## orgnize metadata file
+metacurrent <- data.frame(sample_data(current))
+metacurrent$Column <- as.numeric(gsub("C", "", metacurrent$Column))
+metacurrent$Row <- as.numeric(gsub("R", "", metacurrent$Row))
+
+unique(metacurrent$SampleID == row.names(pc_table))
+df <- merge(metacurrent, pc_table, by.x="SampleID", by.y="row.names")
+
+write.table(x = df, file = "PC_table1.csv",sep = ",",quote = FALSE,row.names = FALSE)
+```
+
+
+
+#prep for H2 analysis
+#used for both PCs (top10) and OTUs
+```{r}
+#####get OTU table
+## load data and libraries
+load("data/1.OTU_method/otu_10192018.RData")
+library("phyloseq"); packageVersion("phyloseq")
+library("ggplot2"); packageVersion("ggplot2")
+
+#Export OTU table and metadata table
+current <- filter1_css
+current
+OTU1 = data.frame(otu_table(current))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+if(taxa_are_rows(current)){OTU1 <- t(OTU1)}
+# Coerce to data.frame
+OTUdf <- as.data.frame(OTU1)
+
+## orgnize metadata file
+metacurrent <- data.frame(sample_data(current))
+metacurrent$Column <- as.numeric(gsub("C", "", metacurrent$Column))
+metacurrent$Row <- as.numeric(gsub("R", "", metacurrent$Row))
+
+df <- if(unique(metacurrent$SampleID == row.names(OTUdf))){merge(metacurrent, OTUdf, by.x="SampleID", by.y="row.names")}
+
+#write OTU table with metadata before transformation
+write.table(df, "data/1.OTU_method/otu_table1_css_1019.csv", sep=",", row.names=FALSE, quote=FALSE)
+```
+
+### H2 method
+
+Rodríguez-Álvarez, María Xosé, et al. Correcting for spatial heterogeneity in plant breeding experiments
+with P-splines. Spatial Statistics 23 (2018): 52-71.
+
+To correct the spatial effects in the field, i.e., closely relted rows and columns in the field tend to share microbial communities, we employed a two-dimensional spline approach (above citation) to overcome the issue. 
+
+
+```{r}
+#install.packages("sommer")
+library("sommer")
+
+sommer_geth2 <- function(tid){
+    #tid: trait id. [chr, "X0"]
+    f <- formula(paste0(tid, ' ~ 1'))
+    fit <- mmer2(f, random=~Line+Block+Row+Column+spl2D(Row,Column, at=Block), 
+                 data=df, silent=TRUE)
+    # packageVersion("sommer") 3.3
+    #vc <- summary(fit)$var.comp.table
+    vc <- summary(fit)$var.comp.table
+    out <- pin(fit, formula(paste0(tid, ' ~ V1/(V1 + V8/3)')) )
+    return(out)
+}
+
+
+#get a list of OTU names
+ids <- names(df)[15:ncol(df)]
+#Caculate H2
+h2 <- unlist(lapply(ids, sommer_geth2))
+h2m <- matrix(h2, ncol=2, byrow=TRUE)
+out <- data.frame(id=ids, h2=h2m[,1], se=h2m[,2])
+
+## output the results
+write.table(out, paste0("cache/h2_trans_otu_table2.csv"), sep=",", row.names=FALSE, quote=FALSE)
+
+```
+
+########GWAS
+#used for both PCs and OTUs
+##BLUP
+```{r, eval=FALSE}
+library("sommer")
+getBLUPv2 <- function(tid){
+    #tid: trait id. [chr, "X0"]
+    f <- formula(paste0(tid, ' ~ 1'))
+    fit <- mmer2(f, random=~Line+Block+Row+Column+spl2D(Row,Column, at=Block), 
+                 data=df, silent=TRUE)
+    #vc <- summary(fit)$var.comp.table
+    print(tid)
+    return(randef(fit)$Line)
+}   
+
+cal_blup <- function(inputfile="cache/1.OTU_method/OTU_sample_table.csv", 
+                     outputfile="cache/1.OTU_method/OTU_blup_table.csv"){
+    df <- read.csv(inputfile, header = TRUE)
+    ids <- names(df)[15:ncol(df)]
+    #ids <- as.list(names(df)[5:6])
+    b <- lapply(ids, getBLUPv2)
+    #save(b, file="cache/blup_list.RData")
+    out <- Reduce(cbind, b)
+    out <- as.data.frame(as.matrix(out))
+
+    names(out) <- ids
+    ## output
+    write.table(out, outputfile, sep=",", quote=FALSE)
+    ###
+}
+
+######### OTU table1
+cal_blup(inputfile="cache/otu_table1_meta_04062018.csv", 
+         outputfile="cache/blup_otu_table1_meta_04102018.csv")
+
+```
+
+## Prepare Pheno data for GWAS
+
+### Use PLINK fam format
+```{r}
+fam <- read.table("largedata/imp_geno_plink/imp_213Rows.fam", header=FALSE)
+
+meta <- read.table("data/3.Metadata/sample-metadata-final_otu.tsv", header=TRUE, sep = "\t", na.strings="")
+
+meta <- subset(meta, Block == "B4" & Sampletype == "Rhizosphere" & Line != "sb42") # sb41 and sb42 have the same PI number
+meta$PI.number <- paste0("SAP_", meta$PI.number)
+meta$Line <- paste0("Line", meta$Line)
+
+fam2 <- merge(fam, meta[, c("Line", "PI.number")], by.x="V1", by.y="PI.number", all.x=TRUE)
+sum(fam$V1 != fam2$V1)
+
+### table1_css
+blup <- read.csv("cache/1.OTU_method/blup_otu_table1_css_rowname.csv", row.names = 1)
+
+fam3 <- merge(fam2, blup, by.x="Line", by.y="row.names", all.x=TRUE)
+fam3 <- fam3[order(fam3$V1), ]
+sum(fam$V1 != fam3$V1)
+
+write.table(fam3[, c(-1,-7)], "largedata/table1_css/imp_213Rows.fam", sep="\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+```
+
+
+## cp plink files to table0,1,2
+```{bash}
+cp imp_geno_plink/imp_213Rows.bed table0
+cp imp_geno_plink/imp_213Rows.bed table1
+cp imp_geno_plink/imp_213Rows.bed table2
+
+cp imp_geno_plink/imp_213Rows.bim table0
+cp imp_geno_plink/imp_213Rows.bim table1
+cp imp_geno_plink/imp_213Rows.bim table2
+```
+
+### Run Gemma
+
+#### calculate an estimated relatedness matrix
+
+
+```{bash}
+gemma -bfile imp_213Rows -gk 1 -o relatedness
+```
+where the “-gk [num]” option specifies which relatedness matrix to estimate, i.e. “-gk 1” calculates
+the centered relatedness matrix while “-gk 2” calculates the standardized relatedness matrix; “-bfile
+[prefix]” specifies PLINK binary ped file prefix; “-g [filename]” specifies BIMBAM mean genotype
+file name; “-p [filename]” specifies BIMBAM phenotype file name; “-o [prefix]” specifies output file
+prefix
+
+```{bash}
+gemma -bfile imp_213Rows -k output/relatedness.cXX.txt -lmm 4 -o test -n 2
+gemma -bfile imp_213Rows -n 1 -k output/relatedness.cXX.txt -lmm 4 -o test1 
+```
+where the “-lmm [num]” option specifies which frequentist test to use, i.e. “-lmm 1” performs Wald
+test, “-lmm 2” performs likelihood ratio test, “-lmm 3” performs score test, and “-lmm 4” performs
+all the three tests; “-bfile [prefix]” specifies PLINK binary ped file prefix; “-g [filename]” specifies
+BIMBAM mean genotype file name; “-p [filename]” specifies BIMBAM phenotype file name; “-
+a [filename]” (optional) specifies BIMBAM SNP annotation file name; “-k [filename]” specifies
+relatedness matrix file name; “-o [prefix]” specifies output file prefix.
+
+### codes for generating GEMMA command lines for all OTUs
+### to run on the server
+## run all OTU traits 
+```{r}
+library("huskeR")
+
+fam <- read.table("largedata/table1_css/imp_213Rows.fam", header=FALSE)
+blup <- read.csv("cache/1.OTU_method/blup_otu_table1_css_rowname.csv", row.names = 1)
+oid <- names(blup)
+
+njobs <- length(oid)
+
+############
+for(i in 1:400){
+    shid <- paste0("slurm-script/run_", i, ".sh")
+    command <- paste0("cd largedata/table1_css; ~/gemma -bfile imp_213Rows -n ",i,
+                      " -k output/relatedness.cXX.txt -lmm 4 -o ", oid[i])
+    cat(command, file=shid, sep="\n", append=FALSE)
+}
+shcode <- "sh slurm-script/run_$SLURM_ARRAY_TASK_ID.sh"
+
+set_array_job(shid="slurm-script/run.sh", shcode=shcode,
+              arrayjobs="1-400", wd=NULL, jobid="gemma", email="swdeng@berkeley.edu",
+              runinfo = c(TRUE, "jyanglab", "1", "2G", "4:00:00"))
+
+##################
+for(i in 401:njobs){
+    shid <- paste0("slurm-script/run_", i-400, ".sh")
+    command <- paste0("cd largedata/table1_css; ~/gemma -bfile imp_213Rows -n ",i,
+                      " -k output/relatedness.cXX.txt -lmm 4 -o ", oid[i])
+    cat(command, file=shid, sep="\n", append=FALSE)
+}
+shcode <- "sh slurm-script/run_$SLURM_ARRAY_TASK_ID.sh"
+
+set_array_job(shid="slurm-script/run.sh", shcode=shcode,
+              arrayjobs="1-786", wd=NULL, jobid="gemma", email="swdeng@berkeley.edu",
+              runinfo = c(TRUE, "jyanglab", "1", "2G", "4:00:00"))
+
+```
+
+
+#indicators species analysis for the validation experiment
+```{r}
+library("labdsv")
+#generate the indicators for the validation experiment:
+rar1 <- readRDS("/Users/colemanderr/Desktop/2019 GWAS validation indicators/vali_110519.rds") # validation phyloseq object
+setwd("/Users/colemanderr/Desktop/2019 GWAS validation indicators/")
+
+########CAPS
+
+#Export OTU table and metadata table
+current <- rar1
+current
+OTU1 = data.frame(otu_table(current))
+rownames(OTU1) <- sub("^", "X", rownames(OTU1))
+OTU1 = as(OTU1, "matrix")
+# transpose if necessary
+if(taxa_are_rows(current)){OTU1 <- t(OTU1)}
+# Coerce to data.frame
+OTUdf <- as.data.frame(OTU1)
+
+## orgnize metadata file
+metacurrent <- data.frame(sample_data(current))
+
+groupingfactor<-"Group"
+Rank_readcounts_current<-OTUdf
+Rank_readcounts_current<- Rank_readcounts_current[,colSums(Rank_readcounts_current)>0]
+env<-metacurrent[,c(1,15)]
+raw_env<-env
+env_current<- get_env(Rank_readcounts_current)
+source("./Desktop/R_work/itag_diversity.R")
+Rank_readcounts_current_matrix <- as.matrix(Rank_readcounts_current)
+storage.mode(Rank_readcounts_current_matrix) <- "integer"
+IndSpec_current <- indval(Rank_readcounts_current_matrix,env_current[,names(env_current)==groupingfactor],numitr=(dim(Rank_readcounts_current_matrix)[2]/0.05)*10)
+IndicatorSpecies_stats <- {}
+IndicatorSpecies_stats<-cbind(IndicatorSpecies_stats,c(IndSpec_current$pval))
+IndicatorSpecies_stats<-cbind(IndicatorSpecies_stats,c(IndSpec_current$maxcls))
+IndicatorSpecies_stats<-cbind(IndicatorSpecies_stats,c(IndSpec_current$indcls))
+IndicatorSpecies_stats <-as.data.frame(IndicatorSpecies_stats)
+# Adds pvalue,maxclass, and indclass
+rownames(IndicatorSpecies_stats) <- gsub("^X(\\d*)","\\1",rownames(IndicatorSpecies_stats),perl=T)
+# Adds consensus lineage
+colnames(IndicatorSpecies_stats)<-c("Pvalue","MaxClass",
+"IndicatorValueforMaxClass")
+IndicatorSpecies_stats<-IndicatorSpecies_stats[IndicatorSpecies_stats$MaxClass>0,]
+IndicatorSpecies_stats$MaxClass<-as.factor(IndicatorSpecies_stats$MaxClass)
+for (level in 1:length(levels(env_current[,colnames(env_current)==groupingfactor]))){
+levels(IndicatorSpecies_stats$MaxClass)[level]<-levels(env_current[,colnames(env_current)==groupingfactor])[level]
+}
+# Converts Maxclass entries to env_current names.
+RelAbund<-as.data.frame(IndSpec_current$relabu,check.names=F)
+rownames(RelAbund) <- gsub("^X(\\d*)","\\1",rownames(RelAbund),perl=T)
+#convert rownames to remove the X.
+RelAbund<- RelAbund[rownames(RelAbund)%in%rownames(IndicatorSpecies_stats),]
+colnames(RelAbund)<-sub("","\\1RelAbu_",colnames(RelAbund))
+#shorten RelAbund to include only rownames in IndicaterSpeciesStats.
+IndicatorSpecies_stats<-cbind(IndicatorSpecies_stats,RelAbund[,1:(dim(RelAbund)[2])])
+# Adds relative abundance.
+RelFrq<-as.data.frame(IndSpec_current$relfrq,check.names=F)
+rownames(RelFrq) <- gsub("^X(\\d*)","\\1",rownames(RelFrq),perl=T)
+#convert rownames to remove the X.
+RelFrq<- RelFrq[rownames(RelFrq)%in%rownames(IndicatorSpecies_stats),]
+colnames(RelFrq)<-sub("","\\1RelFrq_",colnames(RelFrq))
+#shorten RelAbund to include only rownames in IndicaterSpeciesStats.
+IndicatorSpecies_stats<-cbind(IndicatorSpecies_stats,RelFrq[,1:(dim(RelFrq)[2])])
+attach(IndicatorSpecies_stats)
+IndicatorSpecies_stats<-IndicatorSpecies_stats[order(MaxClass,Pvalue,
+-IndicatorValueforMaxClass),]
+#gets the order in increasing pvalue, and decreasing Indicator value.
+detach(IndicatorSpecies_stats)
+# Orders the entries in table by Maxclass, p-value, lineage, then indicator value.
+write.table (IndicatorSpecies_stats, file="Indicator_Species_by_vali_10x.txt",col.names = NA,sep="\t")
+
+as.data.frame(tax_table(rar1))->test
+
+write.table(test,file="/Users/colemanderr/Desktop/2019 GWAS validation indicators//vali_taxa.txt",quote = F,sep = "\t")
+```
+
