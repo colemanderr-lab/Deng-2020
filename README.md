@@ -1,7 +1,7 @@
 # Deng-2020
 ## Genome wide association study reveals plant loci controlling heritability of the rhizosphere microbiome
 
-*Siwen Deng, Daniel F. Caddell, Jinliang Yang, Lindsay Dahlen, Lorenzo Washington, Devin Coleman-Derr*
+*Siwen Deng, Daniel F. Caddell, Gen Xu, Lindsay Dahlen, Lorenzo Washington, Jinliang Yang, Devin Coleman-Derr*
 
 Link to BioRxiv preprint: doi:https://doi.org/10.1101/2020.02.21.960377
 
