@@ -1,7 +1,7 @@
 ---
 title: "Statistical analyses and plotting for sorghum rhizosphere GWAS"
 author: "Siwen Deng Ph.D. and Daniel F. Caddell Ph.D."
-date: "12/01/2020"
+date: "12/08/2020"
 output:
   html_document: default
   pdf_document: default
@@ -570,9 +570,9 @@ p5b3
 # ggsave("figure_5b-3.png", plot = p5b3, width=10, height=3, dpi=600)
 ```
 
-#Supplemental Figure 1
+#Supplemental Figure 3
 ```{r}
-#Supplemental Figure 1 color palette
+#Supplemental Figure 3 color palette
 farrowAndBall_palette <- c(
   "#4d5b6a" #Stiffkey Blue
   ,"#6a90b4" #Cook's Blue
@@ -596,7 +596,7 @@ farrowAndBall_palette <- c(
   ,"#444546") #Off-Black
 ```
 
-Supplemental Figure 1 (200 lines)
+Supplemental Figure 3 (200 lines)
 ```{r}
 #import data from current working directory
 rar_current <- readRDS("fig3_200line.rds") #same RDS that was used in figure3
@@ -649,7 +649,7 @@ summary(melts)
 Plot 200 lines
 ```{r}
 # plot relative abundance for rhizosphere (200 lines, merged)
-ps1_1 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxrank_level)))) +
+ps3_1 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxrank_level)))) +
                 geom_bar(stat="identity",position = "stack") +
                 scale_fill_manual(values = farrowAndBall_palette[1:16]) +
                 theme(axis.text.x=element_text(size=12,color="black",angle=90), 
@@ -657,12 +657,12 @@ ps1_1 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxra
                       axis.title=element_text(size=16,face="bold"),
                       text=element_text(size=16)) +
                 guides(fill=guide_legend(title=taxrank_level))
-ps1_1
-# ggsave("figure_S1-1.pdf", plot = ps1_1, width=4.5, height=8, useDingbats=FALSE)
-# ggsave("figure_S1-1.png", plot = ps1_1, width=4.5, height=8, dpi=600)
+ps3_1
+# ggsave("figure_S3-1.pdf", plot = ps3_1, width=4.5, height=8, useDingbats=FALSE)
+# ggsave("figure_S3-1.png", plot = ps3_1, width=4.5, height=8, dpi=600)
 
 # plot relative abundance for rhizosphere (200 lines, separate)
-ps1_2 <-ggplot(data=melts, aes(x=Line, y=Abundance, fill=factor(get(taxrank_level)))) +
+ps3_2 <-ggplot(data=melts, aes(x=Line, y=Abundance, fill=factor(get(taxrank_level)))) +
                 geom_bar(stat="identity", width=1, position = "fill") +
                 scale_fill_manual(values = farrowAndBall_palette[1:16]) +
                 theme(axis.text.x=element_text(size=12,color="black",angle=90), 
@@ -670,12 +670,12 @@ ps1_2 <-ggplot(data=melts, aes(x=Line, y=Abundance, fill=factor(get(taxrank_leve
                       axis.title=element_text(size=16,face="bold"),
                       text=element_text(size=16)) +
                 guides(fill=guide_legend(title=taxrank_level))
-ps1_2
-# ggsave("figure_S1-2.pdf", plot = ps1_2, width=8, height=8, useDingbats=FALSE)
-# ggsave("figure_S1-2.png", plot = ps1_2, width=8, height=8, dpi=600)
+ps3_2
+# ggsave("figure_S3-2.pdf", plot = ps3_2, width=8, height=8, useDingbats=FALSE)
+# ggsave("figure_S3-2.png", plot = ps3_2, width=8, height=8, dpi=600)
 ```
 
-Supplemental Figure 1 (24 lines)
+Supplemental Figure 3 (24 lines)
   Note:24 line chunk must be run after the 200 line chunk above, due to dependencies
 ```{r}
 #import data from current working directory
@@ -711,7 +711,7 @@ melts$Sampletype <- factor(melts$Sampletype, levels = c("Leaf", "Root", "Rhizo")
 
 Plot 24 lines
 ```{r}
-ps1_3 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxrank_level)))) +
+ps3_3 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxrank_level)))) +
                 geom_bar(stat="identity",position = "fill") +
                 scale_fill_manual(values = farrowAndBall_palette[1:16]) +
                 theme(axis.text.x=element_text(size=12,color="black",angle=90), 
@@ -719,246 +719,12 @@ ps1_3 <- ggplot(data=melts, aes(x=Sampletype, y=Abundance, fill=factor(get(taxra
                       axis.title=element_text(size=16,face="bold"),
                       text=element_text(size=16)) +
                 guides(fill=guide_legend(title=taxrank_level))
-ps1_3
-# ggsave("figure_S1-3.pdf", plot = ps1_3, width=6, height=8, useDingbats=FALSE)
-# ggsave("figure_S1-3.png", plot = ps1_3, width=6, height=8, dpi=600)
+ps3_3
+# ggsave("figure_S3-3.pdf", plot = ps3_3, width=6, height=8, useDingbats=FALSE)
+# ggsave("figure_S3-3.png", plot = ps3_3, width=6, height=8, dpi=600)
 ```
 
-#Supplemental Figure2
-Supplemental Figure 2a
-```{r}
-#import data from current working directory
-pcs <- read.table("figS2_top10PC.txt", header = TRUE)
-pcs$Top10PCs <- factor(pcs$Top10PCs, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10"))
-```
-
-Plot for Supplemental Figure 2a
-```{r}
-ps2a <- ggplot(data=pcs, aes(x=Top10PCs, y=ProportionExplained, fill=level)) +
-                geom_bar(stat="identity") +
-                scale_fill_manual(values=c("#E09E19", "#2D637F"))
-ps2a
-# ggsave("figure_S2a.pdf", plot = ps2a, width=6, height=4, useDingbats=FALSE)
-# ggsave("figure_S2a.png", plot = ps2a, width=6, height=4, dpi=600)
-```
-
-Supplemental Figure 2b
-```{r}
-#get snp region of interest for chromosome4 (used to specify SNPs within ch4 locus)
-qval <- read.csv("PC1.assoc.txt", header = TRUE, sep = "\t")
-ch4 <- subset(qval, chr == 4)
-goi <- subset(ch4, ps > 47500000 & ps < 49000000)
-snpsOfInterest4 <- levels(factor(goi$rs))
-#get snp of interest for chromosome6 (used to specify SNPs within ch6 locus)
-ch6 <- subset(qval, chr == 6)
-goi <- subset(ch6, ps > 50000000 & ps < 51000000)
-snpsOfInterest6 <- levels(factor(goi$rs))
-```
-
-subset for PC1 / chromosome 4
-```{r}
-qval <- read.csv("PC1.assoc.txt", header = TRUE, sep = "\t")
-qval$log10p <- -log10(qval$p_score)
-#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confirm for multi test correnction
-chr4 <- subset(qval, chr ==4)
-qval <- chr4
-geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
-```
-
-
-Plot for Supplemental Figure 2b (PC1)
-```{r}
-ps2b1 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest4) #export pdf size width=3, height=6, png width = 300, height = 600
-#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest4) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.
-```
-
-subset for PC5 / chromosome 6
-```{r}
-qval <- read.csv("PC5.assoc.txt", header = TRUE, sep = "\t")
-qval$log10p <- -log10(qval$p_score)
-#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confrim for multi test correnction
-chr6 <- subset(qval, chr ==6)
-qval <- chr6
-geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
-```
-
-Plot for Supplemental Figure 2b (PC5)
-```{r}
-ps2b2 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #export pdf size width=3, height=6, png width = 300, height = 600
-#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.     
-```
-
-subset for PC10 / chromosome 6
-```{r}
-qval <- read.csv("PC10.assoc.txt", header = TRUE, sep = "\t")
-qval$log10p <- -log10(qval$p_score)
-#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confrim for multi test correnction
-chr6 <- subset(qval, chr ==6)
-qval <- chr6
-geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
-```
-
-Plot for Supplemental Figure 2b (PC10)
-
-```{r}
-ps2b3 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #export pdf size width=3, height=6, png width = 300, height = 600
-#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.     
-```
-
-Supplemental figure 2c
-```{r}
-#OTU list generated from Figure4_get_otus.R
-#the list is called out_all
-#OTU within the chromosome4 locus
-out0 <- rev(c("PC1","X692","X14","X172","X544","X798","X1170","X78","X30","X312","X766","X1020","X199","X734","X318","X577",	
-            "X947","X1190","X190","X445","X302","X531","X1289","X11","X325","X1239","X904","X943","X1039","X506","X94",
-            "X82","X326","X461","X695","X286","X205","X148","X340","X996"))
-#OTU within for chromosome6 locus
-out1 <- c("PC10","PC5","X323","X1103","X802","X359","X846","X422","X730","X521","X682","X1158")
-#OTU shared with both chromosome4 and 6 loci
-out_all <- c(out1[! out1 %in% "X18"], "X18", out0[! out0 %in% "X18"])
-otuhits <- out_all
-```
-
-Supplemental figure 2c (Ch4)
-```{r results="hide"}
-#get snps data
-goi <- data.frame()
-for(i in 1:length(otuhits)){
-  oid <- otuhits[i]
-  print(i)
-  print(oid)
-  file <- paste0(oid, ".assoc.txt")
-  a <- fread(file, data.table=FALSE)
-  ch4 <- subset(a, chr == 4)
-  ch4$file <- file
-  ch4$otu <- gsub(".*\\/|.assoc.txt", "", ch4$file)
-  goi_add <- subset(ch4, ps > 47500000 & ps < 49000000)
-  goi <- rbind(goi, goi_add)
-}
-#rank otu
-goi$otu <- factor(x = goi$otu, levels = out_all, ordered = TRUE)
-length(levels(factor(goi$rs)))
-```
-
-Plot for Supplemental Figure 2c (ch4)
-```{r}
-ps2c1 <- ggplot(data = goi, aes(x = rs, y = otu)) +
-                geom_tile(aes(fill = -log10(goi$p_score))) +
-                scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1.5,3,6,9)),guide = "colorbar") +
-                theme(axis.title.y = element_blank(),
-                      axis.ticks.y = element_blank(),
-                      legend.position = "top")
-ps2c1
-# ggsave("figure_S2c-1.pdf", plot = ps2c1, width=6, height=8, useDingbats=FALSE)
-# ggsave("figure_S2c-1.png", plot = ps2c1, width=6, height=8, dpi=600)
-```
-
-Supplemental figure 2c (Ch6)
-```{r results="hide"}
-#get snps data
-goi <- data.frame()
-for(i in 1:length(otuhits)){
-  oid <- otuhits[i]
-  print(i)
-  print(oid)
-  file <- paste0(oid, ".assoc.txt")
-  a <- fread(file, data.table=FALSE)
-  ch6 <- subset(a, chr == 6)
-  ch6$file <- file
-  ch6$otu <- gsub(".*\\/|.assoc.txt", "", ch6$file)
-  goi_add <- subset(ch6, ps > 50000000 & ps < 51000000)
-  goi <- rbind(goi, goi_add)
-}
-##rank otu
-goi$otu <- factor(x = goi$otu, levels = out_all, ordered = TRUE)
-length(levels(factor(goi$rs)))
-```
-
-Plot for Supplemental Figure 2c (ch6)
-```{r}
-ps2c2 <- ggplot(data = goi, aes(x = rs, y = otu)) +
-                geom_tile(aes(fill = -log10(goi$p_score))) +
-                scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1.5,3,6,9)),guide = "colorbar") +
-                theme(axis.title.y = element_blank(),
-                      axis.ticks.y = element_blank(),
-                      legend.position = "top")
-# ggsave("figure_S2c-2.pdf", plot = ps2c2, width=6, height=8, useDingbats=FALSE)
-# ggsave("figure_S2c-2.png", plot = ps2c2, width=6, height=8, dpi=600)
-```
-
-Supplemental figure 2c (bacterial order)
-```{r}
-#import data from current working directory
-qval <-read.csv("figS2_order.txt")
-
-#Color palette used for supplemental figure 2c
-FS2C_palette <- c("#cb9e59"#"Acidobacteriales"  
-                ,"#a1c5c8"#"Actinomycetales" 
-                ,"#8B0000"#"Bacillales" 
-                ,"#c8bd83"#"Burkholderiales"  
-                ,"#84b59c"#"Gemmatimonadales" 
-                ,"#427e83"#"Myxococcales"  
-                ,"#444546" #"Other"
-                ,"#ecc363" #Rhizobiales
-                ,"#919f70"#Rhodospirillales
-                ,"#a04344"#"Solibacterales"   
-                ,"#c57b67"#"Solirubrobacterales"
-                ,"#bf7a8f"#"Spartobacteriales"  
-                ,"#599ec4"#"Sphingobacteriales" 
-                ,"#7997a1"#"Verrucomicrobiales" 
-                ,"#d65f3d")#"Xanthomonadales" 
-```
-
-Plot for Supplemental Figure 2c (bacterial order)
-```{r}
-ps2c3 <- ggplot(data=qval, aes(x=rank, y=1, fill= Order)) +
-                geom_tile()+
-                theme_minimal()+ 
-                scale_fill_manual(values = (FS2C_palette)) +
-                theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
-                      axis.title.y=element_blank())+
-                coord_fixed()
-ps2c3
-# ggsave("figure_S2c-3.pdf", plot = ps2c3, width=10, height=6, useDingbats=FALSE)
-# ggsave("figure_S2c-3.png", plot = ps2c3, width=10, height=6, dpi=600)
-```
-
-Additional supplemental data not present in preprint version
-```{r}
-#CAP Analysis (supplemental figure 1-200 lines)
-## Need to add minor/major info to phyloseq object
-#Test<- sample_data(rar_trans)$PI.number
-#Test
-#write.csv(Test, row.names = FALSE, quote = FALSE, file = "PInumber.csv")
-alleles<- read.csv("PInumber.csv", sep=",", header=TRUE) #added in Alleles in excel afterwards, then reimported
-sam.new <- sample_data(alleles)
-head(sam.new)
-rownames(sam.new) <- sample(sample_names(rar_trans))
-ps0 <- merge_phyloseq(rar_trans, sample_data(sam.new))
-head(sample_data(ps0))
-ordcap200 = ordinate(ps0, "CAP", "bray", ~Alleles)
-
-newplot <- phyloseq::plot_ordination(ps0,ordcap200,color="Alleles",shape="Alleles") +
-  geom_point(size=4) +
-  scale_color_manual(values=c("#A9A9A9", "#a04344")) +
-  scale_shape_manual(values=c(20,19)) +
-  #geom_text(size = 4, color = "black", aes(label=PI.number), show.legend = F, hjust=0.5, vjust=0.5)+
-  theme(legend.title = element_text(colour="black", size=11, face="bold")) +
-  theme(legend.text = element_text(colour="black", size = 11, face = "bold"))+
-  theme(axis.text.x=element_text(hjust=1,vjust=0.5,size=10,color="black",angle=90,face="bold"), 
-        axis.text.y=element_text(size=11,color="black",face="bold"), 
-        axis.title=element_text(size=11,face="bold"),text=element_text(size=11,face="bold"),
-        legend.position = "right")
-newplot
-
-#perform permanova
-ps.prop_dist <- distance(ps0, method = "bray")
-ps.prop_data <- data.frame(sample_data(ps0))
-summary(ps.prop_data)
-calc_pairwise_permanovas(ps.prop_dist, ps.prop_data, "Alleles")
-```
-
+#Supplemental figure 4
 Calculation of SNP-based heritability
 ```{bash,eval=FALSE}
 # Estimate the GRM from all the autosomal SNPs
@@ -967,8 +733,7 @@ gcta64  --bfile sg_198samples  --autosome  --make-grm  --out sg_198samples
 gcta --grm sg_198samples --pheno GCTA_Phe_by_Deng.txt --reml --mpheno $i --out hsq_deng/$t
 ```
 
-
-Plot Supplemental figure 5a
+Plot Supplemental figure 4a
 ```{r,eval=FALSE}
 d=fread("h2.txt",header = T,data.table = F)
 d1=d[,c(1,3,4)]
@@ -994,7 +759,7 @@ p
 dev.off()
 ```
 
-Plot Supplemental figure 5b
+Plot Supplemental figure 4b
 ```{r,eval=FALSE}
 pdf("snpH2_phe_H2100.pdf",height = 4.5,width = 5)
 par(mfrow=c(1,1),mar=c(4,4,1,1))
@@ -1020,6 +785,205 @@ p
 dev.off()
 ```
 
+#Supplemental Figure5
+Supplemental Figure 5a
+```{r}
+#import data from current working directory
+pcs <- read.table("figS2_top10PC.txt", header = TRUE)
+pcs$Top10PCs <- factor(pcs$Top10PCs, levels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6", "PC7", "PC8", "PC9", "PC10"))
+```
+
+Plot for Supplemental Figure 5a
+```{r}
+ps5a <- ggplot(data=pcs, aes(x=Top10PCs, y=ProportionExplained, fill=level)) +
+                geom_bar(stat="identity") +
+                scale_fill_manual(values=c("#E09E19", "#2D637F"))
+ps5a
+# ggsave("figure_S5a.pdf", plot = ps5a, width=6, height=4, useDingbats=FALSE)
+# ggsave("figure_S5a.png", plot = ps5a, width=6, height=4, dpi=600)
+```
+
+Supplemental Figure 5b
+```{r}
+#get snp region of interest for chromosome4 (used to specify SNPs within ch4 locus)
+qval <- read.csv("PC1.assoc.txt", header = TRUE, sep = "\t")
+ch4 <- subset(qval, chr == 4)
+goi <- subset(ch4, ps > 47500000 & ps < 49000000)
+snpsOfInterest4 <- levels(factor(goi$rs))
+#get snp of interest for chromosome6 (used to specify SNPs within ch6 locus)
+ch6 <- subset(qval, chr == 6)
+goi <- subset(ch6, ps > 50000000 & ps < 51000000)
+snpsOfInterest6 <- levels(factor(goi$rs))
+```
+
+subset for PC1 / chromosome 4
+```{r}
+qval <- read.csv("PC1.assoc.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confirm for multi test correnction
+chr4 <- subset(qval, chr ==4)
+qval <- chr4
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+Plot for Supplemental Figure 5b (PC1)
+```{r}
+ps5b1 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest4) #export pdf size width=3, height=6, png width = 300, height = 600
+#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest4) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.
+```
+
+subset for PC5 / chromosome 6
+```{r}
+qval <- read.csv("PC5.assoc.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confrim for multi test correnction
+chr6 <- subset(qval, chr ==6)
+qval <- chr6
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+Plot for Supplemental Figure 5b (PC5)
+```{r}
+ps5b2 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #export pdf size width=3, height=6, png width = 300, height = 600
+#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.     
+```
+
+subset for PC10 / chromosome 6
+```{r}
+qval <- read.csv("PC10.assoc.txt", header = TRUE, sep = "\t")
+qval$log10p <- -log10(qval$p_score)
+#qval$p_wald_fdr <- p.adjust(a$p_wald, method="fdr") ##confrim for multi test correnction
+chr6 <- subset(qval, chr ==6)
+qval <- chr6
+geno <- data.frame(CHR=qval$chr, BP=qval$ps, P=qval$p_score, SNP=qval$rs)
+```
+
+Plot for Supplemental Figure 5b (PC10)
+```{r}
+ps5b3 <- qqman::manhattan(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #export pdf size width=3, height=6, png width = 300, height = 600
+#qqfun(na.omit(geno), ylim=c(0,4.5), suggestiveline = F, col = c("#2D637F"), highlight = snpsOfInterest6) #NOTE: "qqfun" = "qqman::manhattan", with source code to change SNP color from green to red.     
+```
+
+Supplemental figure 5c
+```{r}
+#OTU list generated from Figure4_get_otus.R
+#the list is called out_all
+#OTU within the chromosome4 locus
+out0 <- rev(c("PC1","X692","X14","X172","X544","X798","X1170","X78","X30","X312","X766","X1020","X199","X734","X318","X577",	
+            "X947","X1190","X190","X445","X302","X531","X1289","X11","X325","X1239","X904","X943","X1039","X506","X94",
+            "X82","X326","X461","X695","X286","X205","X148","X340","X996"))
+#OTU within for chromosome6 locus
+out1 <- c("PC10","PC5","X323","X1103","X802","X359","X846","X422","X730","X521","X682","X1158")
+#OTU shared with both chromosome4 and 6 loci
+out_all <- c(out1[! out1 %in% "X18"], "X18", out0[! out0 %in% "X18"])
+otuhits <- out_all
+```
+
+Supplemental figure 5c (Ch4)
+```{r results="hide"}
+#get snps data
+goi <- data.frame()
+for(i in 1:length(otuhits)){
+  oid <- otuhits[i]
+  print(i)
+  print(oid)
+  file <- paste0(oid, ".assoc.txt")
+  a <- fread(file, data.table=FALSE)
+  ch4 <- subset(a, chr == 4)
+  ch4$file <- file
+  ch4$otu <- gsub(".*\\/|.assoc.txt", "", ch4$file)
+  goi_add <- subset(ch4, ps > 47500000 & ps < 49000000)
+  goi <- rbind(goi, goi_add)
+}
+#rank otu
+goi$otu <- factor(x = goi$otu, levels = out_all, ordered = TRUE)
+length(levels(factor(goi$rs)))
+```
+
+Plot for Supplemental Figure 5c (ch4)
+```{r}
+ps5c1 <- ggplot(data = goi, aes(x = rs, y = otu)) +
+                geom_tile(aes(fill = -log10(goi$p_score))) +
+                scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1.5,3,6,9)),guide = "colorbar") +
+                theme(axis.title.y = element_blank(),
+                      axis.ticks.y = element_blank(),
+                      legend.position = "top")
+ps5c1
+# ggsave("figure_S5c-1.pdf", plot = ps5c1, width=6, height=8, useDingbats=FALSE)
+# ggsave("figure_S5c-1.png", plot = ps5c1, width=6, height=8, dpi=600)
+```
+
+Supplemental figure 5c (Ch6)
+```{r results="hide"}
+#get snps data
+goi <- data.frame()
+for(i in 1:length(otuhits)){
+  oid <- otuhits[i]
+  print(i)
+  print(oid)
+  file <- paste0(oid, ".assoc.txt")
+  a <- fread(file, data.table=FALSE)
+  ch6 <- subset(a, chr == 6)
+  ch6$file <- file
+  ch6$otu <- gsub(".*\\/|.assoc.txt", "", ch6$file)
+  goi_add <- subset(ch6, ps > 50000000 & ps < 51000000)
+  goi <- rbind(goi, goi_add)
+}
+##rank otu
+goi$otu <- factor(x = goi$otu, levels = out_all, ordered = TRUE)
+length(levels(factor(goi$rs)))
+```
+
+Plot for Supplemental Figure 5c (ch6)
+```{r}
+ps5c2 <- ggplot(data = goi, aes(x = rs, y = otu)) +
+                geom_tile(aes(fill = -log10(goi$p_score))) +
+                scale_fill_gradientn(colours=c("white","#e5e0db","#6a90b4","#2D637F","#4d5b6a"), values = rescale(c(0,1.5,3,6,9)),guide = "colorbar") +
+                theme(axis.title.y = element_blank(),
+                      axis.ticks.y = element_blank(),
+                      legend.position = "top")
+# ggsave("figure_S5c-2.pdf", plot = ps5c2, width=6, height=8, useDingbats=FALSE)
+# ggsave("figure_S5c-2.png", plot = ps5c2, width=6, height=8, dpi=600)
+```
+
+Supplemental figure 5c (bacterial order)
+```{r}
+#import data from current working directory
+qval <-read.csv("figS2_order.txt")
+
+#Color palette used for supplemental figure 5c
+F52C_palette <- c("#cb9e59"#"Acidobacteriales"  
+                ,"#a1c5c8"#"Actinomycetales" 
+                ,"#8B0000"#"Bacillales" 
+                ,"#c8bd83"#"Burkholderiales"  
+                ,"#84b59c"#"Gemmatimonadales" 
+                ,"#427e83"#"Myxococcales"  
+                ,"#444546" #"Other"
+                ,"#ecc363" #Rhizobiales
+                ,"#919f70"#Rhodospirillales
+                ,"#a04344"#"Solibacterales"   
+                ,"#c57b67"#"Solirubrobacterales"
+                ,"#bf7a8f"#"Spartobacteriales"  
+                ,"#599ec4"#"Sphingobacteriales" 
+                ,"#7997a1"#"Verrucomicrobiales" 
+                ,"#d65f3d")#"Xanthomonadales" 
+```
+
+Plot for Supplemental Figure 5c (bacterial order)
+```{r}
+ps5c3 <- ggplot(data=qval, aes(x=rank, y=1, fill= Order)) +
+                geom_tile()+
+                theme_minimal()+ 
+                scale_fill_manual(values = (F52C_palette)) +
+                theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, hjust = 1),
+                      axis.title.y=element_blank())+
+                coord_fixed()
+ps5c3
+# ggsave("figure_S5c-3.pdf", plot = ps5c3, width=10, height=6, useDingbats=FALSE)
+# ggsave("figure_S5c-3.png", plot = ps5c3, width=10, height=6, dpi=600)
+```
+
+#Supplemental figure 6
 Linkage Disequilibrium (LD) analysis
 ```{bash,eval=FALSE}
 plink --bfile imp_213Rows --r2 --ld-snp S4_48072472 --ld-window-kb 10000 --ld-window 99999 --ld-window-r2 0
@@ -1038,7 +1002,6 @@ manhattan(d1, chr = "chr", bp = "ps", p = "p_wald", snp = "rs",
           suggestiveline = F, genomewideline = -log10(5e-08))
 dev.off()
 ```
-
 
 Plot Supplemental figure 6b
 ```{r,eval=FALSE}
@@ -1065,7 +1028,45 @@ points(48.072472,-log10(0.0000623238),pch=15,cex=1,col=adjustcolor("blue",alpha.
 dev.off()
 ```
 
-Plot Supplemental figure 7
+Supplemental figure 6c
+```{r}
+#CAP Analysis (GWAS 200 lines)
+## Need to add minor/major info to phyloseq object
+#Test<- sample_data(rar_trans)$PI.number
+#Test
+#write.csv(Test, row.names = FALSE, quote = FALSE, file = "PInumber.csv")
+alleles<- read.csv("PInumber-CAP.csv", sep=",", header=TRUE) #added in Alleles in excel afterwards, then reimported
+sam.new <- sample_data(alleles)
+head(sam.new)
+rownames(sam.new) <- sample(sample_names(rar_current))
+ps0 <- merge_phyloseq(rar_current, sample_data(sam.new))
+head(sample_data(ps0))
+ps_keep <- subset_samples(ps0, CAP=="Keep")
+ordcap200 = ordinate(ps_keep, "CAP", "bray", ~Alleles)
+
+CAP200 <- phyloseq::plot_ordination(ps_keep,ordcap200,color="Alleles",shape="Alleles") +
+  geom_point(size=8) +
+  scale_color_manual(values=c("#a04344", "#2D637F")) +
+  scale_shape_manual(values=c(20,20)) +
+  #geom_text(size = 3, color = "black", aes(label=PInumber), show.legend = F, hjust=0.5, vjust=0.5)+
+  theme(legend.title = element_text(colour="black", size=11, face="bold")) +
+  theme(legend.text = element_text(colour="black", size = 11, face = "bold"))+
+  theme(axis.text.x=element_text(hjust=1,vjust=0.5,size=10,color="black",angle=90,face="bold"), 
+        axis.text.y=element_text(size=11,color="black",face="bold"), 
+        axis.title=element_text(size=11,face="bold"),text=element_text(size=11,face="bold"),
+        legend.position = "right")
+CAP200
+ #ggsave("CAP200.pdf", plot = CAP200, width=7, height=5, useDingbats=FALSE)
+ #ggsave("CAP200.png", plot = CAP200, width=7, height=5, dpi=600)
+
+#perform permanova
+ps.prop_dist <- distance(ps_keep, method = "bray")
+ps.prop_data <- data.frame(sample_data(ps_keep))
+summary(ps.prop_data)
+calc_pairwise_permanovas(ps.prop_dist, ps.prop_data, "Alleles")
+```
+
+#Supplemental figure 7
 ```{r,eval=FALSE}
 library("data.table")
 gwas=fread("PC1.assoc.txt",header = T,sep="\t",data.table=F)
@@ -1091,5 +1092,3 @@ abline(v=m,col="red")
 abline(h=2.6,col="gray",lwd=2,lty=2)
 dev.off()
 ```
-
-
