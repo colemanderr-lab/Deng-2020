@@ -3,7 +3,8 @@
 
 *Siwen Deng, Daniel F. Caddell, Gen Xu, Lindsay Dahlen, Lorenzo Washington, Jinliang Yang, Devin Coleman-Derr*
 
-Link to BioRxiv preprint: doi:https://doi.org/10.1101/2020.02.21.960377
+Link to final publication: https://doi.org/10.1038/s41396-021-00993-z
+Link to BioRxiv preprint: https://doi.org/10.1101/2020.02.21.960377
 
 Included in this repository are...
 + Deng2020.Rmd (R markdown file to run analyses and generate figures)
